@@ -1,0 +1,8 @@
+1.1946-2019   1976之前字段较少
+
+2.  divs_standings_E  divs_standings_W
+
+3. https://www.basketball-reference.com/teams/MIA/1997.html (全数据表格)
+roster_rows = per_game_rows = per_poss_rows = advanced_rows = 1
+shooting_rows = shooting_rows = pbp_rows = playoffs_per_game_rows = playoffs_per_poss_rows =1
+playoffs_advanced_rows = playoffs_shooting_rows = playoffs_pbp_rows = salaries2_rows = 1

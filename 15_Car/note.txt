@@ -1,0 +1,10 @@
+http://www.euro4x4parts.com/?c=accueil&m=ajax_catalogue POST
+select0: jeep
+langue: 1
+
+http://www.euro4x4parts.com/?c=accueil&m=ajax_catalogue POST
+select0: jeep
+select1: cherokee_1_xj_1984_1996
+langue: 1
+该接口响应中有url
+

@@ -1,0 +1,5 @@
+1.遍历分类-- api：getFrontCatList，拿到分类的id
+2.遍历活动-- api：getActivityList，拿到每个分类下的活动
+3.获取商品列表-- api：getGoodsList，拿到活动下的商品
+4.判断是否过期（过期时间 < 当前时间）
+5.获取商品详细信息：getGoodsInfo?goods_id=200804003481283581899383414786
