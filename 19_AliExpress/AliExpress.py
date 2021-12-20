@@ -1,4 +1,3 @@
-import xlutils
 from bs4 import BeautifulSoup as Bs4
 import os
 import xlrd
@@ -70,7 +69,7 @@ def save_image(url):
 def get_excel1_data(driver):
     # 移动鼠标
     ActionChains(driver).move_to_element(driver.find_element_by_class_name("store-name")).perform()
-    sleep(2)
+    sleep(2.5)
     page_source = driver.page_source
     soup = Bs4(page_source, 'lxml')
     bs = soup('div', attrs={"class": "store-dsr-data"})[0].select('b')
@@ -85,19 +84,39 @@ def get_excel1_data(driver):
     # 追
     followers = soup('p', attrs={"class": "num-followers"})[0].text.split('Followers')[0].strip()
     # 标题
-    title = soup('h1', attrs={"class": "product-title-text"})[0].text
-    review = soup("span", attrs={"class": "product-reviewer-reviews black-link"})[0].text.split('Reviews')[0].strip()
-    orders = soup("span", attrs={"class": "product-reviewer-sold"})[0].text.split('orders')[0].strip()
-    score = soup("span", attrs={"class": "overview-rating-average"})[0].text
+    try:
+        title = soup('h1', attrs={"class": "product-title-text"})[0].text
+    except Exception as e:
+        print(e)
+        print('没有title')
+        title = ''
+    try:
+        review = soup("span", attrs={"class": "product-reviewer-reviews black-link"})[0].text.split('Reviews')[0].strip()
+    except Exception as e:
+        print(e)
+        print('没有review')
+        review = ''
+    try:
+        orders = soup("span", attrs={"class": "product-reviewer-sold"})[0].text.split('orders')[0].strip()
+    except Exception as e:
+        print(e)
+        print('没有orders')
+        orders = ''
+    try:
+        score = soup("span", attrs={"class": "overview-rating-average"})[0].text
+    except Exception as e:
+        print(e)
+        print('没有score')
+        score = ''
     # 首图
     first_image = soup("img", attrs={"class": "magnifier-image"})[0].get('src')
     # 爱心
     like = soup("span", attrs={"class": "add-wishlist-num"})[0].text
 
     driver.execute_script("window.scrollTo(0, 450)")
-    sleep(1)
+    sleep(1.5)
     driver.execute_script("document.getElementsByClassName('tab-inner')[6].click()")
-    sleep(1)
+    sleep(1.5)
     soup = Bs4(driver.page_source, 'lxml')
     specifications = "".join(list(soup("div", attrs={"class": "product-specs"})[0].stripped_strings))
     # 优惠券
@@ -163,15 +182,25 @@ def get_excel2_data(driver):
             shipping = shipping.split('$')[1]
     except:
         shipping = 'Can not deliver'
-    product_count = len(soup('ul', attrs={"class": "sku-property-list"})[0].select('li'))
+    try:
+        product_count = len(soup('ul', attrs={"class": "sku-property-list"})[0].select('li'))
+    except:
+        print('只有一张图')
+        product_count = 1
     products = []
     for i in range(0, product_count):
-        image_divs = driver.find_elements_by_class_name('sku-property-image')
-        ActionChains(driver).click(image_divs[i]).perform()
-        sleep(0.5)
+        try:
+            image_divs = driver.find_elements_by_class_name('sku-property-image')
+            ActionChains(driver).click(image_divs[i]).perform()
+            sleep(0.7)
+            color = driver.find_element_by_class_name('sku-title-value').get_property('innerText')
+            imageUrl = image_divs[i].find_element_by_tag_name('img').get_attribute('src')
+        except:
+            pass
+            color = ''
+            imageUrl = ''
         # 颜色，图片，原价，现价，折扣
-        color = driver.find_element_by_class_name('sku-title-value').get_property('innerText')
-        imageUrl = image_divs[i].find_element_by_tag_name('img').get_attribute('src')
+
         rePrice = driver.find_element_by_class_name('product-price-current').find_element_by_class_name(
             'product-price-value').get_property('innerText')
         try:
@@ -209,38 +238,38 @@ def write_excel2_data(row, date, link, excel2_sheet, excel2_data):
     temp_row += 1
     row += 1
     column = 1
+    # 国家
+    excel2_sheet.set_row(row, 60)
+    excel2_sheet.write_row(row, 0, ['国家'] + country_list_single)
+    temp_row += 1
+    row += 1
+    # 运费
     for i in range(0, len(excel2_data)):
-        # 国家
-        excel2_sheet.set_row(row, 60)
-        excel2_sheet.write_row(row, 0, ['国家'] + country_list_single)
-        temp_row += 1
-        row += 1
         # =========
         # 一列
-        excel2_sheet.set_column(1, 30, 60)
-        column_data = [excel2_data[i]['shipping']]
+        excel2_sheet.set_column(1, 30, 40)
+        column_data = []
         for produce in excel2_data[i]['products']:
-            column_data.append(produce['color'])
+            column_data.append(excel2_data[i]['shipping'])
+            column_data.append(str(produce['color']))
             column_data.append('')
-            column_data.append(produce['color'])
-            column_data.append(produce['color'])
-            column_data.append(produce['color'])
+            column_data.append(str(produce['rePrice']))
+            column_data.append(str(produce['nowPrice']))
+            column_data.append(str(produce['sail']))
             pass
-        excel2_sheet.write_column(row, column, [column_data])
+        # print(row, column, column_data)
+        excel2_sheet.write_column(row, column, column_data)
         # 图片
-        if i == 0:
-            # {
-            #     "color": color,
-            #     "imageUrl": imageUrl,
-            #     "rePrice": rePrice,
-            #     "nowPrice": nowPrice,
-            #     "sail": sail
-            # }
-            image_row = row + 1
-            for j in range(0, len(excel2_data[0]['products'])):
-                image = save_image(excel2_data[0]['products'][j]['imageUrl'])
-                excel2_sheet.insert_image(image_row + (5 * j), column, './images/' + image,
-                                          {'x_offset': 5, 'y_offset': 5, 'x_scale': 0.06, 'y_scale': 0.06})
+        try:
+            if i == 0:
+                image_row = row + 1
+                for j in range(0, len(excel2_data[0]['products'])):
+                    excel2_sheet.set_row(image_row + (6 * j), 60)
+                    image = save_image(excel2_data[0]['products'][j]['imageUrl'].split('.jpg')[0] + '.jpg')
+                    excel2_sheet.insert_image(image_row + (6 * j), column, './images/' + image,
+                                              {'x_offset': 5, 'y_offset': 5, 'x_scale': 0.06, 'y_scale': 0.06})
+        except:
+            print('无图片写入')
         column += 1
     # 最后增加的行数
     temp_row += len(excel2_data[0]['products']) * 5 + 1
@@ -250,80 +279,88 @@ def write_excel2_data(row, date, link, excel2_sheet, excel2_data):
 
 def get_excel3_data(driver):
     comment_data = []
-    driver.execute_script("window.scrollTo(0, 1050)")
-    sleep(0.5)
-    driver.execute_script("document.getElementsByClassName('tab-inner')[5].click()")
-    sleep(3)
-    # 跳转到iframe
-    driver.switch_to.frame("product-evaluation")
-    soup = Bs4(driver.page_source, 'lxml')
-    # 评价星数百分比li
-    rate_lis = soup('ul', attrs={"class": "rate-list"})[0].find_all("li")
-    # star_lis = driver.find_element_by_id('filter_star_list').find_element_by_tag_name('ul').find_elements_by_tag_name('li')
-    for i in range(0, 5):
-        ActionChains(driver).move_to_element(driver.find_element_by_class_name('fb-star-selector')).perform()
+    try:
+        driver.execute_script("window.scrollTo(0, 1050)")
         sleep(1)
-        star_rate = rate_lis[i].find_all('span', attrs={"class": "r-num fb-star-list-href"})[0].text
-        ActionChains(driver).click(
-            driver.find_element_by_id('filter_star_list').find_element_by_tag_name('ul').find_elements_by_tag_name(
-                'li')[i + 1].find_element_by_tag_name('a')).perform()
-        sleep(1)
-        # 评论数据
+        driver.execute_script("document.getElementsByClassName('tab-inner')[5].click()")
+        sleep(3)
+        # 跳转到iframe
+        driver.switch_to.frame("product-evaluation")
+        sleep(2)
         soup = Bs4(driver.page_source, 'lxml')
-        comment_cons = soup('div', attrs={'class': 'feedback-item clearfix'})
-        comment_list = []
-        for comment_con in comment_cons:
-            user_country = comment_con.find('div', attrs={"class": "fb-user-info"}).find('div', attrs={
-                "class": "user-country"}).find('b').text
+        # 评价星数百分比li
+        rate_lis = soup('ul', attrs={"class": "rate-list"})[0].find_all("li")
+        # star_lis = driver.find_element_by_id('filter_star_list').find_element_by_tag_name('ul').find_elements_by_tag_name('li')
+        for i in range(0, 5):
+            ActionChains(driver).move_to_element(driver.find_element_by_class_name('fb-star-selector')).perform()
+            sleep(1.5)
+            star_rate = rate_lis[i].find_all('span', attrs={"class": "r-num fb-star-list-href"})[0].text
+            ActionChains(driver).click(
+                driver.find_element_by_id('filter_star_list').find_element_by_tag_name('ul').find_elements_by_tag_name(
+                    'li')[i + 1].find_element_by_tag_name('a')).perform()
+            sleep(2)
+            # 评论数据
+            soup = Bs4(driver.page_source, 'lxml')
+            comment_cons = soup('div', attrs={'class': 'feedback-item clearfix'})
+            comment_list = []
+            for comment_con in comment_cons:
+                user_country = comment_con.find('div', attrs={"class": "fb-user-info"}).find('div', attrs={
+                    "class": "user-country"}).find('b').text
 
-            comment_box = comment_con.find('div', attrs={"class": "fb-main"})
-            spans = comment_box.find('div', attrs={"class": "user-order-info"}).find_all('span')
+                comment_box = comment_con.find('div', attrs={"class": "fb-main"})
+                spans = comment_box.find('div', attrs={"class": "user-order-info"}).find_all('span')
 
-            color = logistics = ''
-            if list(spans[0].stripped_strings)[0] == "Color:":
-                color = list(spans[0].stripped_strings)[1]
-            if list(spans[0].stripped_strings)[0] == "Logistics:":
-                logistics = list(spans[0].stripped_strings)[1]
-            if len(spans) == 2:
-                if list(spans[1].stripped_strings)[0] == "Color:":
-                    color = list(spans[1].stripped_strings)[1]
-                if list(spans[1].stripped_strings)[0] == "Logistics:":
-                    logistics = list(spans[1].stripped_strings)[1]
+                color = logistics = ''
+                if list(spans[0].stripped_strings)[0] == "Color:":
+                    color = list(spans[0].stripped_strings)[1]
+                if list(spans[0].stripped_strings)[0] == "Logistics:":
+                    logistics = list(spans[0].stripped_strings)[1]
+                if len(spans) == 2:
+                    if list(spans[1].stripped_strings)[0] == "Color:":
+                        color = list(spans[1].stripped_strings)[1]
+                    if list(spans[1].stripped_strings)[0] == "Logistics:":
+                        logistics = list(spans[1].stripped_strings)[1]
 
-            buyer_review = comment_box.find('div', attrs={"class": "f-content"}).find('dl',
-                                                                                      attrs={"class": "buyer-review"})
+                buyer_review = comment_box.find('div', attrs={"class": "f-content"}).find('dl',
+                                                                                          attrs={
+                                                                                              "class": "buyer-review"})
 
-            comment_time_span = buyer_review.find('dt', attrs={"class": "buyer-feedback"}).find_all('span')
-            comment_text = comment_time_span[0].text.strip()
-            comment_time = comment_time_span[1].text.strip()
+                comment_time_span = buyer_review.find('dt', attrs={"class": "buyer-feedback"}).find_all('span')
+                comment_text = comment_time_span[0].text.strip()
+                comment_time = comment_time_span[1].text.strip()
 
-            images_url = []
-            try:
-                images = buyer_review.find('dd', attrs={"class": "r-photo-list"}).select('img')
-                for image in images:
-                    images_url.append(image.get('src'))
-            except:
-                pass
+                images_url = []
+                try:
+                    images = buyer_review.find('dd', attrs={"class": "r-photo-list"}).select('img')
+                    for image in images:
+                        images_url.append(image.get('src'))
+                except:
+                    pass
 
-            comment_list.append({
-                "user_country": user_country,
-                "color": color,
-                "logistics": logistics,
-                "comment_text": comment_text,
-                "comment_time": comment_time,
-                "images_url": images_url
+                comment_list.append({
+                    "user_country": user_country,
+                    "color": color,
+                    "logistics": logistics,
+                    "comment_text": comment_text,
+                    "comment_time": comment_time,
+                    "images_url": images_url
+                })
+            comment_data.append({
+                "star_rate": star_rate,
+                "comment": comment_list
             })
-        comment_data.append({
-            "star_rate": star_rate,
-            "comment": comment_list
-        })
+    except Exception as e:
+        print(e)
+        print('没有评论数据')
+        comment_data = []
     driver.switch_to.default_content()
     return comment_data
 
 
 def write_excel3_data(row, date, link, title, shop_name, review, order, score, excel3_sheet, excel3_data):
+    if not excel3_data:
+        return 0
     add_row = 0
-    excel3_sheet.set_row(row, 30)
     # 店铺信息
     excel3_sheet.set_row(row, 60)
     excel3_sheet.write_row(row, 0, ['检索日期', '链接', '标题', '店铺名', 'Review', 'order', '评分'])
@@ -362,40 +399,43 @@ def write_excel3_data(row, date, link, title, shop_name, review, order, score, e
 def exchange_country(name, index, driver):
     print(name)
     driver.execute_script("window.scrollTo(0, 0)")
-    sleep(0.5)
+    sleep(1.5)
     try:
-        ActionChains(driver).click(driver.find_element_by_xpath('//*[@id="nav-global"]/div[4]/div')).perform()
+        ActionChains(driver).click(driver.find_element_by_id('switcher-info')).perform()
     except Exception as e:
         print(e)
         sleep(5)
-        ActionChains(driver).click(driver.find_element_by_xpath('//*[@id="nav-global"]/div[4]/div')).perform()
-    sleep(2)
-    ActionChains(driver).click(driver.find_element_by_class_name('address-select-trigger')).perform()
-    sleep(0.7)
-    ActionChains(driver).click(driver.find_element_by_class_name('filter-input')).perform()
-    sleep(0.7)
-    driver.find_element_by_class_name("filter-input").send_keys(name)
-    sleep(0.7)
-    ActionChains(driver).click(driver.find_elements_by_class_name('address-select-item')[index]).perform()
+        ActionChains(driver).click(driver.find_element_by_id('switcher-info')).perform()
     sleep(3)
+    # address-select-trigger
+    ActionChains(driver).click(driver.find_element_by_class_name('address-select-trigger')).perform()
+    sleep(1)
+    # 点击输入框
+    ActionChains(driver).click(driver.find_element_by_class_name('filter-input')).perform()
+    sleep(1)
+    # 输入国家
+    driver.find_element_by_class_name("filter-input").send_keys(name)
+    sleep(1)
+    ActionChains(driver).click(driver.find_elements_by_class_name('address-select-item')[index]).perform()
+    sleep(3.5)
     # 点击语言
     print('点击语言')
     ActionChains(driver).click(driver.find_element_by_class_name('select-item')).perform()
-    sleep(0.7)
+    sleep(1.5)
     ActionChains(driver).click(driver.find_element_by_class_name('switcher-item')).perform()
-    sleep(0.7)
+    sleep(1)
     # 点击货币
     print('点击货币')
     ActionChains(driver).click(driver.find_elements_by_class_name('select-item')[1]).perform()
-    sleep(0.7)
+    sleep(1.5)
     ActionChains(driver).click(
         driver.find_elements_by_class_name('notranslate')[3].find_element_by_tag_name('li').find_element_by_tag_name(
             'a')).perform()
 
     print('点击save')
-    sleep(0.7)
+    sleep(1)
     ActionChains(driver).click(driver.find_element_by_class_name('go-contiune-btn')).perform()
-    sleep(10)
+    sleep(12)
 
 
 def spider_main():
@@ -423,7 +463,7 @@ def spider_main():
     excel3_row = 0
     excel2_row = 0
     for i in range(0, len(shop_links)):
-        print(shop_links[i])
+        print('链接：' + shop_links[i])
         driver.get(shop_links[i])
         # driver.maximize_window()
         sleep(2)
@@ -454,8 +494,8 @@ def spider_main():
         except Exception as e:
             print(e)
             print('excel1 and excel3 写入异常')
-            excel1.close()
-            excel3.close()
+            # excel1.close()
+            # excel3.close()
             # raise e
 
         # 4.遍历29个国家，获取29个国家商品数据
@@ -472,7 +512,6 @@ def spider_main():
                 print('组装产品数据excel2_data异常')
                 with open('excel2.json', 'a', encoding='utf-8') as f:
                     f.write(str(excel2_data))
-                # raise e
         # 写入excel2_data { "shipping": shipping, "products": products }
         try:
             temp_row = write_excel2_data(excel2_row, search_date[i], shop_links[i], excel2_sheet, excel2_data)
